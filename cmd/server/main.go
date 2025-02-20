@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net"
-	"os"
 
 	"github.com/HellUpa/gRPC-CRUD/internal/app"
 	"github.com/HellUpa/gRPC-CRUD/internal/db"
@@ -16,14 +16,17 @@ import (
 
 func main() {
 	// Database connection parameters (use environment variables).
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+	var dbHost, dbPort, dbUser, dbPassword, dbName string
+
+	flag.StringVar(&dbHost, "host", "localhost", "db address")
+	flag.StringVar(&dbPort, "port", "5432", "db port")
+	flag.StringVar(&dbUser, "user", "postgres", "db user")
+	flag.StringVar(&dbPassword, "password", "postgres", "db password")
+	flag.StringVar(&dbName, "db_name", "postgres", "db name")
+	flag.Parse()
 
 	// Connect to PostgreSQL.
-	postgresDB, err := db.NewPostgresDB(dbHost, dbPort, dbUser, dbPass, dbName)
+	postgresDB, err := db.NewPostgresDB(dbHost, dbPort, dbUser, dbPassword, dbName)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
