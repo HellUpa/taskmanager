@@ -14,7 +14,7 @@ type PostgresDB struct {
 }
 
 func NewPostgresDB(host, port, user, password, dbname string) (*PostgresDB, error) {
-	// Connection string.  Consider using environment variables for security.
+	// Connection string.  Consider using flags.
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 

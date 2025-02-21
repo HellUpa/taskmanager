@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	// Database connection parameters (use environment variables).
+	// Database connection parameters (use flags).
 	var dbHost, dbPort, dbUser, dbPassword, dbName string
 
 	flag.StringVar(&dbHost, "host", "localhost", "db address")

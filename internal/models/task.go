@@ -5,11 +5,11 @@ import (
 )
 
 type Task struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	DueDate     time.Time `json:"due_date"`
-	Completed   bool      `json:"completed"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int
+	Title       string
+	Description string
+	DueDate     time.Time
+	Completed   bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
