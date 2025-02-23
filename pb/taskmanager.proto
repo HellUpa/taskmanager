@@ -27,12 +27,11 @@ message Task {
   int32 id = 1;
   string title = 2;
   string description = 3;
-  string due_date = 4; // Store as string for simplicity, parse in Go
+  string due_date = 4; 
   bool completed = 5;
-  string created_at = 6; // Store as string, use timestamptz in DB
-  string updated_at = 7; // Store as string, use timestamptz in DB
+  string created_at = 6; 
+  string updated_at = 7; 
 }
-
 // Request message for creating a new task.
 message CreateTaskRequest {
   string title = 1;

@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	// TODO (student): Implement the client code.
 	// Connect to the gRPC server.
 	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
