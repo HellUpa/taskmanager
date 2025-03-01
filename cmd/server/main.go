@@ -7,6 +7,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/HellUpa/gRPC-CRUD/internal/app"
@@ -19,6 +22,8 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+// TODO: Изменить стандартный логгер на что нибудь более продвинутое. Например, slog.
+
 func main() {
 	// Database connection parameters (use flags).
 	var dbHost, dbPort, dbUser, dbPassword, dbName, listenPort string
@@ -28,7 +33,7 @@ func main() {
 	flag.StringVar(&dbPort, "port", "5432", "db port")
 	flag.StringVar(&dbUser, "user", "postgres", "db user")
 	flag.StringVar(&dbPassword, "password", "postgres", "db password")
-	flag.StringVar(&dbName, "db_name", "postgres", "db name")
+	flag.StringVar(&dbName, "dbname", "taskmanager", "db name")
 	flag.StringVar(&listenPort, "listen", "50051", "gRPC server listen port")
 	flag.IntVar(&healthCheckPort, "healthcheck", 8080, "Health check port")
 	flag.Parse()
@@ -85,8 +90,19 @@ func main() {
 	}
 	fmt.Printf("Server listening on port %s\n", listenPort)
 
-	// Serve gRPC server.
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	// Запускаем gRPC-сервер в отдельной горутине.
+	go func() {
+		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+	// Ожидаем сигнал.
+	<-stop
+	log.Println("Shutting down server...")
+	// Graceful shutdown gRPC-сервера.
+	grpcServer.GracefulStop()
+	log.Println("Server gracefully stopped")
 }
