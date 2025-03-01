@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -40,6 +41,8 @@ func main() {
 
 	// Register the TaskManager service with the gRPC server.
 	pb.RegisterTaskManagerServer(grpcServer, taskManagerService)
+
+	reflection.Register(grpcServer)
 
 	// Listen on a port (e.g., 50051).
 	port := "50051"
