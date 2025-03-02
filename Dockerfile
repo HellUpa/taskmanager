@@ -27,6 +27,7 @@ WORKDIR /app
 # Копируем скомпилированный бинарник из *builder* образа.
 COPY --from=builder /app/taskmanager-server .
 
-# Указываем команду, которая будет запускаться при старте контейнера.
-# Здесь же указываем параметры запуска.
-CMD ["./taskmanager-server", "-host", "db", "-port", "5432", "-user", "postgres", "-password", "postgres", "-dbname", "taskmanager", "-listen", "50051", "-healthcheck", "8080"]
+RUN mkdir -p /etc
+
+# CMD с путем к конфигу по умолчанию ВНУТРИ КОНТЕЙНЕРА.
+CMD ["./taskmanager-server", "-config", "/etc/config.yaml"]

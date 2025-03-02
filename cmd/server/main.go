@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/HellUpa/gRPC-CRUD/internal/app"
+	"github.com/HellUpa/gRPC-CRUD/internal/config"
 	"github.com/HellUpa/gRPC-CRUD/internal/db"
 	"github.com/HellUpa/gRPC-CRUD/internal/telemetry"
 	pb "github.com/HellUpa/gRPC-CRUD/pb/gen"
@@ -26,17 +26,7 @@ import (
 
 func main() {
 	// App connection parameters (with flags).
-	var dbHost, dbPort, dbUser, dbPassword, dbName, listenPort string
-	var healthCheckPort int
-
-	flag.StringVar(&dbHost, "host", "localhost", "db address")
-	flag.StringVar(&dbPort, "port", "5432", "db port")
-	flag.StringVar(&dbUser, "user", "postgres", "db user")
-	flag.StringVar(&dbPassword, "password", "postgres", "db password")
-	flag.StringVar(&dbName, "dbname", "taskmanager", "db name")
-	flag.StringVar(&listenPort, "listen", "50051", "gRPC server listen port")
-	flag.IntVar(&healthCheckPort, "healthcheck", 8080, "Health check port")
-	flag.Parse()
+	cfg := config.MustLoad()
 
 	// Инициализируем провайдер метрик.
 	meterProvider, err := telemetry.NewStdoutMeterProvider("taskmanager-server", "v0.1.0")
@@ -58,7 +48,7 @@ func main() {
 	}
 
 	// Connect to PostgreSQL.
-	postgresDB, err := db.NewPostgresDB(dbHost, dbPort, dbUser, dbPassword, dbName)
+	postgresDB, err := db.NewPostgresDB(cfg.Database)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -78,17 +68,17 @@ func main() {
 
 	go func() {
 		http.HandleFunc("/health", telemetry.HealthCheckHandler)
-		log.Printf("Health check server listening on :%d\n", healthCheckPort)
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", healthCheckPort), nil); err != nil {
+		log.Printf("Health check server listening on :%d\n", cfg.Telemetry.HealthCheckPort)
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Telemetry.HealthCheckPort), nil); err != nil {
 			log.Fatalf("failed to start health check server: %v", err)
 		}
 	}()
 
-	lis, err := net.Listen("tcp", ":"+listenPort)
+	lis, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fmt.Printf("Server listening on port %s\n", listenPort)
+	fmt.Printf("Server listening on port %s\n", cfg.GRPC.Port)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)

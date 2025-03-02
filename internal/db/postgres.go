@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/HellUpa/gRPC-CRUD/internal/config"
 	"github.com/HellUpa/gRPC-CRUD/internal/models"
 )
 
@@ -13,10 +14,10 @@ type PostgresDB struct {
 	DB *sql.DB
 }
 
-func NewPostgresDB(host, port, user, password, dbname string) (*PostgresDB, error) {
+func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
 	// Connection string.  Consider using flags.
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {

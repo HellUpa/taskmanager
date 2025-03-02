@@ -1,0 +1,12 @@
+env: "local"  
+db: 
+  host: "localhost"  
+  port: "5432"
+  user: "postgres"
+  password: "postgres"
+  name: "taskmanager"  
+grpc:  
+  port: "50051"  
+  timeout: 10s
+telemetry:
+  port: 8080

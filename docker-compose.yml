@@ -9,6 +9,8 @@ services:
       - "8080:8080"   # Health check
     depends_on:
       - db
+    volumes:
+      - ./internal/config/config_docker.yaml:/etc/config.yaml
     environment:
       - GODEBUG=gctrace=1 # Enable GC trace
     networks:
