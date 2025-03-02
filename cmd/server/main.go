@@ -25,7 +25,7 @@ import (
 // TODO: Изменить стандартный логгер на что нибудь более продвинутое. Например, slog.
 
 func main() {
-	// Database connection parameters (use flags).
+	// App connection parameters (with flags).
 	var dbHost, dbPort, dbUser, dbPassword, dbName, listenPort string
 	var healthCheckPort int
 
@@ -77,7 +77,7 @@ func main() {
 	reflection.Register(grpcServer)
 
 	go func() {
-		http.HandleFunc("/healthz", telemetry.HealthCheckHandler)
+		http.HandleFunc("/health", telemetry.HealthCheckHandler)
 		log.Printf("Health check server listening on :%d\n", healthCheckPort)
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", healthCheckPort), nil); err != nil {
 			log.Fatalf("failed to start health check server: %v", err)
@@ -99,10 +99,9 @@ func main() {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
-	// Ожидаем сигнал.
+
 	<-stop
 	log.Println("Shutting down server...")
-	// Graceful shutdown gRPC-сервера.
 	grpcServer.GracefulStop()
 	log.Println("Server gracefully stopped")
 }

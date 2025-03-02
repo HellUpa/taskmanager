@@ -50,7 +50,7 @@ func NewStdoutMeterProvider(serviceName, serviceVersion string) (*StdoutMeterPro
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithInterval(5*time.Second))),
 	)
 
-	otel.SetMeterProvider(provider) // Устанавливаем глобальный провайдер
+	otel.SetMeterProvider(provider)
 
 	return &StdoutMeterProvider{provider: provider}, nil
 }

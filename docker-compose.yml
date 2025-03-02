@@ -10,12 +10,12 @@ services:
     depends_on:
       - db
     environment:
-      - GODEBUG=gctrace=1 # Пример переменной окружения (для отладки GC)
+      - GODEBUG=gctrace=1 # Enable GC trace
     networks:
       - taskmanager-net
 
   db:
-    image: postgres:15-alpine # Или другую версию
+    image: postgres:15-alpine
     ports:
       - "5432:5432"
     environment:
