@@ -9,5 +9,7 @@ http_server:
   port: ":8080"  
   timeout: 10s
   idle_timeout: 120s
+health_check:
+  port: ":8000"
 telemetry:
-  port: 8000
+  port: ":9090"

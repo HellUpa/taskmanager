@@ -28,7 +28,7 @@ func main() {
 	cfg := config.MustLoad()
 
 	// Create a new meter provider.
-	meterProvider, err := telemetry.NewStdoutMeterProvider("taskmanager-server", "v0.1.0")
+	meterProvider, err := telemetry.NewPrometheusMeterProvider("taskmanager-server", "v0.1.0")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,6 +39,16 @@ func main() {
 			log.Printf("Error shutting down meter provider: %v", err)
 		}
 	}()
+
+	meter := meterProvider.Meter("taskmanager-server")
+	requestCount, err := telemetry.CreateCounter(meter, "requests_total", "Total number of requests")
+	if err != nil {
+		log.Printf("failed to create request counter: %v", err)
+	}
+	requestLatency, err := telemetry.CreateHistogram(meter, "request_duration", "HTTP request duration (latency) in milliseconds", "ms")
+	if err != nil {
+		log.Printf("failed to create request latency histogram: %v", err)
+	}
 
 	// Connect to PostgreSQL.
 	postgresDB, err := db.NewPostgresDB(cfg.Database)
@@ -59,6 +69,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(telemetry.HTTPRequestMetrics(requestCount, requestLatency))
 
 	// Routes.
 	r.Get("/tasks", handlers.ListTasksHandler(taskManagerService))
@@ -68,7 +79,10 @@ func main() {
 	r.Delete("/tasks/{id}", handlers.DeleteTaskHandler(taskManagerService))
 
 	// Health check and metrics endpoints.
-	r.Get("/health", telemetry.HealthCheckHandler)
+	h := chi.NewRouter()
+	h.Get("/health", telemetry.HealthCheckHandler)
+	m := chi.NewRouter()
+	m.Handle("/metrics", telemetry.ExposeMetricsHandler())
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -88,13 +102,45 @@ func main() {
 		}
 	}()
 
+	// Start Health Check server
+	healthcheck := &http.Server{
+		Addr:    cfg.HealthCheck.Port,
+		Handler: h,
+	}
+	go func() {
+		fmt.Printf("Healthcheck server listening on %v", cfg.HealthCheck.Port)
+		if err := healthcheck.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("failed to start healthcheck server: %v", err))
+		}
+	}()
+
+	// Start Metrics server
+	metrics := &http.Server{
+		Addr:    cfg.Telemetry.Port,
+		Handler: m,
+	}
+	go func() {
+		fmt.Printf("Metrics server listening on %v", cfg.Telemetry.Port)
+		if err := metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("failed to start metrics server: %v", err))
+		}
+	}()
+
 	<-stop
 	log.Println("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Println("failed to gracefully shutdown server %v", err)
+		log.Printf("failed to gracefully shutdown server: %v", err)
+	}
+
+	if err := healthcheck.Shutdown(ctx); err != nil {
+		log.Printf("failed to gracefully shutdown healthcheck server: %v", err)
+	}
+
+	if err := metrics.Shutdown(ctx); err != nil {
+		log.Printf("failed to gracefully shutdown metrics server: %v", err)
 	}
 	log.Println("Server gracefully stopped")
 }

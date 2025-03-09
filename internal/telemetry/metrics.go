@@ -3,9 +3,12 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -18,8 +21,6 @@ type MeterProvider interface {
 	Shutdown(ctx context.Context) error
 	Meter(instrumentationName string, opts ...metric.MeterOption) metric.Meter
 }
-
-// TODO: Сделать нормальный провайдер метрик.(Например, PrometheusMeterProvider)
 
 // StdoutMeterProvider провайдер, выводящий метрики в stdout.
 type StdoutMeterProvider struct {
@@ -72,4 +73,66 @@ func CreateCounter(meter metric.Meter, name, description string) (metric.Int64Co
 		return nil, fmt.Errorf("failed to create counter %s: %w", name, err)
 	}
 	return counter, nil
+}
+
+// CreateHistogram creates a histogram to measure the distribution of request latencies.
+func CreateHistogram(meter metric.Meter, name, description string, unit string) (metric.Int64Histogram, error) {
+	histogram, err := meter.Int64Histogram(name,
+		metric.WithDescription(description),
+		metric.WithUnit(unit),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create histogram %s: %w", name, err)
+	}
+	return histogram, nil
+}
+
+// PrometheusMeterProvider провайдер, экспортирующий метрики в Prometheus.
+type PrometheusMeterProvider struct {
+	provider *sdkmetric.MeterProvider
+}
+
+// NewPrometheusMeterProvider создает новый PrometheusMeterProvider.
+func NewPrometheusMeterProvider(serviceName, serviceVersion string) (*PrometheusMeterProvider, error) {
+
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+			semconv.ServiceVersion(serviceVersion),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	exporter, err := prometheus.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create prometheus exporter: %w", err)
+	}
+
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(exporter),
+	)
+
+	otel.SetMeterProvider(provider)
+
+	return &PrometheusMeterProvider{provider: provider}, nil
+}
+
+// Shutdown ... (как и раньше)
+func (p *PrometheusMeterProvider) Shutdown(ctx context.Context) error {
+	return p.provider.Shutdown(ctx)
+}
+
+// Meter ... (как и раньше)
+func (p *PrometheusMeterProvider) Meter(instrumentationName string, opts ...metric.MeterOption) metric.Meter {
+	return p.provider.Meter(instrumentationName, opts...)
+}
+
+// ExposeMetricsHandler возвращает http.Handler для эндпоинта /metrics.
+func ExposeMetricsHandler() http.Handler {
+	return promhttp.Handler()
 }

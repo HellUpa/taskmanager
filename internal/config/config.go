@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Env        string          `yaml:"env" env-default:"local"`
-	Database   DatabaseConfig  `yaml:"db" env-required:"true"`
-	HTTPServer HTTPConfig      `yaml:"http_server"`
-	Telemetry  TelemetryConfig `yaml:"telemetry"`
+	Env         string            `yaml:"env" env-default:"local"`
+	Database    DatabaseConfig    `yaml:"db" env-required:"true"`
+	HTTPServer  HTTPConfig        `yaml:"http_server"`
+	HealthCheck HealthCheckConfig `yaml:"health_check_port"`
+	Telemetry   TelemetryConfig   `yaml:"telemetry"`
 }
 type DatabaseConfig struct {
 	DBHost     string `yaml:"host"`
@@ -28,8 +29,12 @@ type HTTPConfig struct {
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
+type HealthCheckConfig struct {
+	Port string `yaml:"port"`
+}
+
 type TelemetryConfig struct {
-	HealthCheckPort int `yaml:"port"`
+	Port string `yaml:"port"`
 }
 
 func MustLoad() *Config {
