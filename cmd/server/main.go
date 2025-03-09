@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +14,8 @@ import (
 	"github.com/HellUpa/taskmanager/internal/config"
 	"github.com/HellUpa/taskmanager/internal/db"
 	"github.com/HellUpa/taskmanager/internal/http-server/handlers"
+	"github.com/HellUpa/taskmanager/internal/logger"
+	logu "github.com/HellUpa/taskmanager/internal/logger/logger-utils"
 	"github.com/HellUpa/taskmanager/internal/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,44 +23,44 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TODO: Изменить стандартный логгер на что нибудь более продвинутое. Например, slog.
-
 func main() {
 	// Configure the application.
 	cfg := config.MustLoad()
+	// Setup the logger.
+	log := logger.SetupLogger(cfg.Env)
 
 	// Create a new meter provider.
 	meterProvider, err := telemetry.NewPrometheusMeterProvider("taskmanager-server", "v0.1.0")
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Error starting meter provider", logu.Err(err))
 	}
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := meterProvider.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down meter provider: %v", err)
+			log.Error("Error shutting down meter provider", logu.Err(err))
 		}
 	}()
 
 	meter := meterProvider.Meter("taskmanager-server")
 	requestCount, err := telemetry.CreateCounter(meter, "requests_total", "Total number of requests")
 	if err != nil {
-		log.Printf("failed to create request counter: %v", err)
+		log.Error("Failed to create request counter", logu.Err(err))
 	}
 	requestLatency, err := telemetry.CreateHistogram(meter, "request_duration", "HTTP request duration (latency) in milliseconds", "ms")
 	if err != nil {
-		log.Printf("failed to create request latency histogram: %v", err)
+		log.Error("Failed to create request latency histogram", logu.Err(err))
 	}
 
 	// Connect to PostgreSQL.
-	postgresDB, err := db.NewPostgresDB(cfg.Database)
+	postgresDB, err := db.NewPostgresDB(log, cfg.Database)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		log.Error("Failed to connect to database", logu.Err(err))
 	}
 	defer postgresDB.Close()
 
 	// Create the TaskManager service.
-	taskManagerService := app.NewTaskManagerService(postgresDB)
+	taskManagerService := app.NewTaskManagerService(log, postgresDB)
 
 	// Create a new Chi router.
 	r := chi.NewRouter()
@@ -66,7 +68,7 @@ func main() {
 	// Middleware.
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(logger.NewMiddlewareLogger(log))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(telemetry.HTTPRequestMetrics(requestCount, requestLatency))
@@ -96,19 +98,19 @@ func main() {
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 	go func() {
-		fmt.Printf("Server listening on %v", cfg.HTTPServer.Port)
+		log.Info("Starting server", slog.String("port", cfg.HTTPServer.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(fmt.Sprintf("failed to start server: %v", err))
 		}
 	}()
 
-	// Start Health Check server
+	// Start Healthcheck server
 	healthcheck := &http.Server{
 		Addr:    cfg.HealthCheck.Port,
 		Handler: h,
 	}
 	go func() {
-		fmt.Printf("Healthcheck server listening on %v", cfg.HealthCheck.Port)
+		log.Info("Starting healthcheck", slog.String("port", cfg.HealthCheck.Port))
 		if err := healthcheck.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(fmt.Sprintf("failed to start healthcheck server: %v", err))
 		}
@@ -120,27 +122,27 @@ func main() {
 		Handler: m,
 	}
 	go func() {
-		fmt.Printf("Metrics server listening on %v", cfg.Telemetry.Port)
+		log.Info("Starting metrics", slog.String("port", cfg.Telemetry.Port))
 		if err := metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			panic(fmt.Sprintf("failed to start metrics server: %v", err))
 		}
 	}()
 
 	<-stop
-	log.Println("Shutting down server...")
+	log.Info("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("failed to gracefully shutdown server: %v", err)
+		log.Error("Failed to gracefully shutdown server", logu.Err(err))
 	}
 
 	if err := healthcheck.Shutdown(ctx); err != nil {
-		log.Printf("failed to gracefully shutdown healthcheck server: %v", err)
+		log.Error("Failed to gracefully shutdown healthcheck server", logu.Err(err))
 	}
 
 	if err := metrics.Shutdown(ctx); err != nil {
-		log.Printf("failed to gracefully shutdown metrics server: %v", err)
+		log.Error("Failed to gracefully shutdown metrics server", logu.Err(err))
 	}
-	log.Println("Server gracefully stopped")
+	log.Info("Server gracefully stopped")
 }

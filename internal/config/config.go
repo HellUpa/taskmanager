@@ -12,7 +12,7 @@ type Config struct {
 	Env         string            `yaml:"env" env-default:"local"`
 	Database    DatabaseConfig    `yaml:"db" env-required:"true"`
 	HTTPServer  HTTPConfig        `yaml:"http_server"`
-	HealthCheck HealthCheckConfig `yaml:"health_check_port"`
+	HealthCheck HealthCheckConfig `yaml:"health_check"`
 	Telemetry   TelemetryConfig   `yaml:"telemetry"`
 }
 type DatabaseConfig struct {

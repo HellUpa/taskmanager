@@ -4,17 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/HellUpa/taskmanager/internal/config"
 	"github.com/HellUpa/taskmanager/internal/models"
 )
 
 type PostgresDB struct {
-	DB *sql.DB
+	DB  *sql.DB
+	log *slog.Logger
 }
 
-func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
+func NewPostgresDB(log *slog.Logger, cfg config.DatabaseConfig) (*PostgresDB, error) {
 	// Connection string.  Consider using flags.
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
@@ -28,8 +29,8 @@ func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-	log.Println("Connected to Database")
-	return &PostgresDB{DB: db}, nil
+	log.Info("Connected to Database")
+	return &PostgresDB{DB: db, log: log}, nil
 }
 
 // CreateTask creates a new task in the database.

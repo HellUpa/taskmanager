@@ -3,18 +3,23 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/HellUpa/taskmanager/internal/db"
+	logu "github.com/HellUpa/taskmanager/internal/logger/logger-utils"
 	"github.com/HellUpa/taskmanager/internal/models"
 )
 
 type TaskManagerService struct {
-	db *db.PostgresDB
+	db  *db.PostgresDB
+	log *slog.Logger
 }
 
-func NewTaskManagerService(db *db.PostgresDB) *TaskManagerService {
-	return &TaskManagerService{db: db}
+func NewTaskManagerService(log *slog.Logger, db *db.PostgresDB) *TaskManagerService {
+	return &TaskManagerService{
+		db:  db,
+		log: log,
+	}
 }
 
 // CreateTask creates a new task.
@@ -27,7 +32,7 @@ func (s *TaskManagerService) CreateTask(ctx context.Context, task *models.Task) 
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Printf("rollback failed: %v", rollbackErr)
+				s.log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -53,7 +58,7 @@ func (s *TaskManagerService) GetTask(ctx context.Context, id int32) (*models.Tas
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Printf("rollback failed: %v", rollbackErr)
+				s.log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -79,7 +84,7 @@ func (s *TaskManagerService) UpdateTask(ctx context.Context, task *models.Task) 
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Printf("rollback failed: %v", rollbackErr)
+				s.log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -104,7 +109,7 @@ func (s *TaskManagerService) DeleteTask(ctx context.Context, id int32) error {
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Printf("rollback failed: %v", rollbackErr)
+				s.log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -128,7 +133,7 @@ func (s *TaskManagerService) ListTasks(ctx context.Context) ([]*models.Task, err
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Printf("rollback failed: %v", rollbackErr)
+				s.log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
