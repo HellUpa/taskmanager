@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/HellUpa/gRPC-CRUD/pb/gen"
+	pb "github.com/HellUpa/taskmanager/pb/gen"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

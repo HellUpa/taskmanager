@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/HellUpa/gRPC-CRUD/internal/db"
-	"github.com/HellUpa/gRPC-CRUD/internal/models"
-	pb "github.com/HellUpa/gRPC-CRUD/pb/gen"
+	"github.com/HellUpa/taskmanager/internal/db"
+	"github.com/HellUpa/taskmanager/internal/models"
+	pb "github.com/HellUpa/taskmanager/pb/gen"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

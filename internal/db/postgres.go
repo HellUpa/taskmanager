@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/HellUpa/gRPC-CRUD/internal/config"
-	"github.com/HellUpa/gRPC-CRUD/internal/models"
+	"github.com/HellUpa/taskmanager/internal/config"
+	"github.com/HellUpa/taskmanager/internal/models"
 )
 
 type PostgresDB struct {

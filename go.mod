@@ -1,4 +1,4 @@
-module github.com/HellUpa/gRPC-CRUD
+module github.com/HellUpa/taskmanager
 
 go 1.23.6
 

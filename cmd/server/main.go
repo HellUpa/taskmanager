@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/HellUpa/gRPC-CRUD/internal/app"
-	"github.com/HellUpa/gRPC-CRUD/internal/config"
-	"github.com/HellUpa/gRPC-CRUD/internal/db"
-	"github.com/HellUpa/gRPC-CRUD/internal/telemetry"
-	pb "github.com/HellUpa/gRPC-CRUD/pb/gen"
+	"github.com/HellUpa/taskmanager/internal/app"
+	"github.com/HellUpa/taskmanager/internal/config"
+	"github.com/HellUpa/taskmanager/internal/db"
+	"github.com/HellUpa/taskmanager/internal/telemetry"
+	pb "github.com/HellUpa/taskmanager/pb/gen"
 
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
@@ -25,10 +25,10 @@ import (
 // TODO: Изменить стандартный логгер на что нибудь более продвинутое. Например, slog.
 
 func main() {
-	// App connection parameters (with flags).
+	// Configure the application.
 	cfg := config.MustLoad()
 
-	// Инициализируем провайдер метрик.
+	// Create a new meter provider.
 	meterProvider, err := telemetry.NewStdoutMeterProvider("taskmanager-server", "v0.1.0")
 	if err != nil {
 		log.Fatal(err)
@@ -57,6 +57,7 @@ func main() {
 	// Create the TaskManager service.
 	taskManagerService := app.NewTaskManagerService(postgresDB)
 
+	// Create a new gRPC server. We also attach the unary interceptor to the server.
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(telemetry.UnaryInterceptor(requestCount)),
 	)
@@ -64,6 +65,7 @@ func main() {
 	// Register the TaskManager service with the gRPC server.
 	pb.RegisterTaskManagerServer(grpcServer, taskManagerService)
 
+	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
 	go func() {
@@ -83,7 +85,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	// Запускаем gRPC-сервер в отдельной горутине.
+	// Start the gRPC server in a goroutine.
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
 			log.Fatalf("failed to serve: %v", err)
