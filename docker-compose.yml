@@ -5,8 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "50051:50051" # gRPC
-      - "8080:8080"   # Health check
+      - "8080:8080"   # HTTP server
+      - "8000:8000"   # Health check
     depends_on:
       - db
     volumes:

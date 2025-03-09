@@ -5,8 +5,9 @@ db:
   user: "postgres"
   password: "postgres"
   name: "taskmanager"  
-grpc:  
-  port: "50051"  
+http_server:  
+  port: ":8080"  
   timeout: 10s
+  idle_timeout: 120s
 telemetry:
-  port: 8080
+  port: 8000

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,12 +13,12 @@ import (
 	"github.com/HellUpa/taskmanager/internal/app"
 	"github.com/HellUpa/taskmanager/internal/config"
 	"github.com/HellUpa/taskmanager/internal/db"
+	"github.com/HellUpa/taskmanager/internal/http-server/handlers"
 	"github.com/HellUpa/taskmanager/internal/telemetry"
-	pb "github.com/HellUpa/taskmanager/pb/gen"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	_ "github.com/lib/pq"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 // TODO: Изменить стандартный логгер на что нибудь более продвинутое. Например, slog.
@@ -41,12 +40,6 @@ func main() {
 		}
 	}()
 
-	meter := meterProvider.Meter("taskmanager-server")
-	requestCount, err := telemetry.CreateCounter(meter, "requests_total", "Total number of requests")
-	if err != nil {
-		log.Fatalf("failed to create request counter: %v", err)
-	}
-
 	// Connect to PostgreSQL.
 	postgresDB, err := db.NewPostgresDB(cfg.Database)
 	if err != nil {
@@ -57,43 +50,51 @@ func main() {
 	// Create the TaskManager service.
 	taskManagerService := app.NewTaskManagerService(postgresDB)
 
-	// Create a new gRPC server. We also attach the unary interceptor to the server.
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(telemetry.UnaryInterceptor(requestCount)),
-	)
+	// Create a new Chi router.
+	r := chi.NewRouter()
 
-	// Register the TaskManager service with the gRPC server.
-	pb.RegisterTaskManagerServer(grpcServer, taskManagerService)
+	// Middleware.
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Register reflection service on gRPC server.
-	reflection.Register(grpcServer)
+	// Routes.
+	r.Get("/tasks", handlers.ListTasksHandler(taskManagerService))
+	r.Post("/tasks", handlers.CreateTaskHandler(taskManagerService))
+	r.Get("/tasks/{id}", handlers.GetTaskHandler(taskManagerService))
+	r.Put("/tasks/{id}", handlers.UpdateTaskHandler(taskManagerService))
+	r.Delete("/tasks/{id}", handlers.DeleteTaskHandler(taskManagerService))
 
-	go func() {
-		http.HandleFunc("/health", telemetry.HealthCheckHandler)
-		log.Printf("Health check server listening on :%d\n", cfg.Telemetry.HealthCheckPort)
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Telemetry.HealthCheckPort), nil); err != nil {
-			log.Fatalf("failed to start health check server: %v", err)
-		}
-	}()
-
-	lis, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	fmt.Printf("Server listening on port %s\n", cfg.GRPC.Port)
+	// Health check and metrics endpoints.
+	r.Get("/health", telemetry.HealthCheckHandler)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	// Start the gRPC server in a goroutine.
+	// Start the server in a goroutine.
+	server := &http.Server{
+		Addr:         cfg.HTTPServer.Port,
+		Handler:      r,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
 	go func() {
-		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
-			log.Fatalf("failed to serve: %v", err)
+		fmt.Printf("Server listening on %v", cfg.HTTPServer.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("failed to start server: %v", err))
 		}
 	}()
 
 	<-stop
 	log.Println("Shutting down server...")
-	grpcServer.GracefulStop()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Println("failed to gracefully shutdown server %v", err)
+	}
 	log.Println("Server gracefully stopped")
 }

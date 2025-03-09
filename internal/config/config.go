@@ -9,10 +9,10 @@ import (
 )
 
 type Config struct {
-	Env       string          `yaml:"env" env-default:"local"`
-	Database  DatabaseConfig  `yaml:"db" env-required:"true"`
-	GRPC      GRPCConfig      `yaml:"grpc"`
-	Telemetry TelemetryConfig `yaml:"telemetry"`
+	Env        string          `yaml:"env" env-default:"local"`
+	Database   DatabaseConfig  `yaml:"db" env-required:"true"`
+	HTTPServer HTTPConfig      `yaml:"http_server"`
+	Telemetry  TelemetryConfig `yaml:"telemetry"`
 }
 type DatabaseConfig struct {
 	DBHost     string `yaml:"host"`
@@ -22,9 +22,10 @@ type DatabaseConfig struct {
 	DBName     string `yaml:"name"`
 }
 
-type GRPCConfig struct {
-	Port    string        `yaml:"port"`
-	Timeout time.Duration `yaml:"timeout"`
+type HTTPConfig struct {
+	Port        string        `yaml:"port" env-default:":8080"`
+	Timeout     time.Duration `yaml:"timeout" env-default:"5s"`
+	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
 type TelemetryConfig struct {
