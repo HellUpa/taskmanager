@@ -8,8 +8,8 @@ docker-compose up --build
 ```
 
 ## Порты
-> :8080 - REST API
-> :9000 - Prometheus 
-> :8000 - Healthcheck
+- :8080 - REST API
+- :9000 - Prometheus 
+- :8000 - Healthcheck
 
 

@@ -30,4 +30,4 @@ COPY --from=builder /app/taskmanager-server .
 RUN mkdir -p /etc
 
 # CMD с путем к конфигу по умолчанию ВНУТРИ КОНТЕЙНЕРА.
-CMD ["./taskmanager-server", "-config", "/etc/config.yaml"]
+CMD ["./taskmanager-server", "-config", "/etc/taskmanager/config.yaml"]

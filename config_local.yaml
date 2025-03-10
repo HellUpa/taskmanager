@@ -1,15 +1,15 @@
-env: "local"  
+env: local  
 db: 
-  host: "localhost"  
-  port: "5432"
-  user: "postgres"
-  password: "postgres"
-  name: "taskmanager"  
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  name: taskmanager
 http_server:  
-  port: ":8080"  
+  port: :8080 
   timeout: 10s
   idle_timeout: 120s
 health_check:
-  port: ":8000"
+  port: :8000
 telemetry:
-  port: ":9090"
+  port: :9090
