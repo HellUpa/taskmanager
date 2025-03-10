@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -30,6 +32,10 @@ func UpdateTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 		task.ID = int32(id)
 
 		if err := tm.UpdateTask(r.Context(), &task); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "Task not found", http.StatusNotFound)
+				return
+			}
 			http.Error(w, fmt.Sprintf("Failed to update task: %v", err), http.StatusInternalServerError)
 			return
 		}

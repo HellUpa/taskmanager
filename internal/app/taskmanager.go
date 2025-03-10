@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -90,6 +92,9 @@ func (s *TaskManagerService) UpdateTask(ctx context.Context, task *models.Task) 
 	}()
 
 	if err := s.db.UpdateTaskTx(ctx, tx, task); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("task with id %d not found: %w", task.ID, err)
+		}
 		return fmt.Errorf("failed to update task: %v", err)
 	}
 
@@ -115,6 +120,9 @@ func (s *TaskManagerService) DeleteTask(ctx context.Context, id int32) error {
 	}()
 
 	if err := s.db.DeleteTaskTx(ctx, tx, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("task with id %d not found: %w", id, err)
+		}
 		return fmt.Errorf("failed to delete task: %v", err)
 	}
 

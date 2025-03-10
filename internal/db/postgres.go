@@ -30,6 +30,20 @@ func NewPostgresDB(log *slog.Logger, cfg config.DatabaseConfig) (*PostgresDB, er
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 	log.Info("Connected to Database")
+
+	if _, err := db.Exec(
+		`CREATE TABLE IF NOT EXISTS tasks (
+		id SERIAL PRIMARY KEY,
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		due_date TIMESTAMP,
+		completed BOOLEAN DEFAULT FALSE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`); err != nil {
+		return nil, fmt.Errorf("failed to prepare database: %w", err)
+	}
+	log.Info("Database preparation completed")
 	return &PostgresDB{DB: db, log: log}, nil
 }
 
@@ -62,20 +76,36 @@ func (pdb *PostgresDB) GetTask(ctx context.Context, id int32) (*models.Task, err
 
 // UpdateTask updates an existing task.
 func (pdb *PostgresDB) UpdateTask(ctx context.Context, task *models.Task) error {
-	_, err := pdb.DB.ExecContext(ctx,
+	result, err := pdb.DB.ExecContext(ctx,
 		"UPDATE tasks SET title = $1, description = $2, due_date = $3, completed = $4, updated_at = NOW() WHERE id = $5",
 		task.Title, task.Description, task.DueDate, task.Completed, task.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }
 
 // DeleteTask deletes a task by its ID.
 func (pdb *PostgresDB) DeleteTask(ctx context.Context, id int32) error {
-	_, err := pdb.DB.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
+	result, err := pdb.DB.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }
@@ -133,20 +163,36 @@ func (pdb *PostgresDB) GetTaskTx(ctx context.Context, tx *sql.Tx, id int32) (*mo
 
 // UpdateTaskTx updates an existing task within a transaction.
 func (pdb *PostgresDB) UpdateTaskTx(ctx context.Context, tx *sql.Tx, task *models.Task) error {
-	_, err := tx.ExecContext(ctx,
+	result, err := tx.ExecContext(ctx,
 		"UPDATE tasks SET title = $1, description = $2, due_date = $3, completed = $4, updated_at = NOW() WHERE id = $5",
 		task.Title, task.Description, task.DueDate, task.Completed, task.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }
 
 // DeleteTaskTx deletes a task by its ID within a transaction.
 func (pdb *PostgresDB) DeleteTaskTx(ctx context.Context, tx *sql.Tx, id int32) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
+	result, err := tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }

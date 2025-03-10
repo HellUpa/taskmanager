@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,6 +22,10 @@ func DeleteTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 		}
 
 		if err := tm.DeleteTask(r.Context(), int32(id)); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "Task not found", http.StatusNotFound)
+				return
+			}
 			http.Error(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
 			return
 		}
