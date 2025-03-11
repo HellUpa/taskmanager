@@ -5,6 +5,7 @@ db:
   user: postgres
   password: postgres
   name: taskmanager
+  migrations_path: /etc/taskmanager/migrations
 http_server:  
   port: :8080 
   timeout: 10s

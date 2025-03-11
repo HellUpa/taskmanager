@@ -1,0 +1,79 @@
+version: v1.3.0
+selfservice:
+  default_browser_return_url: http://localhost:8080/
+  allowed_return_urls:
+    - https://127.0.0.1:8080/
+  flows:
+    error:
+      ui_url: http://localhost:4433/error # Need to implement error UI
+    settings:
+      ui_url: http://localhost:4433/settings # and settings UI
+      privileged_session_max_age: 15m
+    recovery:
+      enabled: false
+      ui_url: http://localhost:4433/recovery # and recovery UI
+    verification:
+      enabled: false
+      ui_url: http://localhost:4433/verify # and verification UI
+    logout:
+        after:
+          default_browser_return_url: http://localhost:8080/
+    login:
+      ui_url: http://localhost:4433/auth/login  # URL of your login UI
+      lifespan: 10m
+    registration:
+      ui_url: http://localhost:4433/auth/registration # URL of your registration UI
+      lifespan: 10m
+      after:
+        password:
+          default_browser_return_url: http://localhost:8080/
+          hooks:
+            - hook: web_hook
+              config:
+                url: http://server:8000/webhooks/kratos  # URL of your webhook handler
+                method: POST
+                headers:
+                  Content-Type: application/json
+        oidc:
+          default_browser_return_url: http://localhost:8080/
+  methods:
+    password:
+      enabled: true
+dsn: postgres://postgres:postgres@kratos-db:5432/kratos?sslmode=disable
+serve:
+  public:
+    base_url: http://localhost:4433/
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:8080
+        - http://localhost:4433
+        - http://127.0.0.1:4433
+        - http://127.0.0.1:8080
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      exposed_headers:
+        - Content-Type
+        - Set-Cookie
+  admin:
+        base_url: http://kratos:4434/
+log:
+  level: debug
+  format: text
+  leak_sensitive_values: true
+secrets:
+  cookie:
+    - BVqFJErBdrPX5ZQDbRf3uwNgzRT9jSkN
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+    

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -100,7 +99,8 @@ func main() {
 	go func() {
 		log.Info("Starting server", slog.String("port", cfg.HTTPServer.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("failed to start server: %v", err))
+			log.Error("Failed to start server", logu.Err(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -112,7 +112,8 @@ func main() {
 	go func() {
 		log.Info("Starting healthcheck", slog.String("port", cfg.HealthCheck.Port))
 		if err := healthcheck.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("failed to start healthcheck server: %v", err))
+			log.Error("Failed to start healthcheck server", logu.Err(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -124,7 +125,8 @@ func main() {
 	go func() {
 		log.Info("Starting metrics", slog.String("port", cfg.Telemetry.Port))
 		if err := metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("failed to start metrics server: %v", err))
+			log.Error("Failed to start metrics server", logu.Err(err))
+			os.Exit(1)
 		}
 	}()
 

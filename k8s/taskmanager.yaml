@@ -47,14 +47,14 @@ spec:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 3
-            periodSeconds: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
             httpGet:
                path: /health
                port: 8000
-            initialDelaySeconds: 3
-            periodSeconds: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
       volumes:
         - name: config-volume
           configMap:

@@ -27,7 +27,5 @@ WORKDIR /app
 # Копируем скомпилированный бинарник из *builder* образа.
 COPY --from=builder /app/taskmanager-server .
 
-RUN mkdir -p /etc
-
 # CMD с путем к конфигу по умолчанию ВНУТРИ КОНТЕЙНЕРА.
 CMD ["./taskmanager-server", "-config", "/etc/taskmanager/config.yaml"]

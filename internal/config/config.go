@@ -16,11 +16,12 @@ type Config struct {
 	Telemetry   TelemetryConfig   `yaml:"telemetry"`
 }
 type DatabaseConfig struct {
-	DBHost     string `yaml:"host"`
-	DBPort     string `yaml:"port"`
-	DBUser     string `yaml:"user"`
-	DBPassword string `yaml:"password"`
-	DBName     string `yaml:"name"`
+	DBHost         string `yaml:"host"`
+	DBPort         string `yaml:"port"`
+	DBUser         string `yaml:"user"`
+	DBPassword     string `yaml:"password"`
+	DBName         string `yaml:"name"`
+	MigrationsPath string `yaml:"migrations_path"`
 }
 
 type HTTPConfig struct {

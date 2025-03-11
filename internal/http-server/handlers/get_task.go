@@ -7,12 +7,20 @@ import (
 	"strconv"
 
 	"github.com/HellUpa/taskmanager/internal/app"
+	"github.com/HellUpa/taskmanager/internal/telemetry"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 // getTaskHandler handles GET requests to retrieve a task by ID.
 func GetTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := r.Context().Value(telemetry.UserIDKey).(uuid.UUID) // Get user ID from context
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		idStr := chi.URLParam(r, "id")
 		id, err := strconv.ParseInt(idStr, 10, 32)
 		if err != nil {
@@ -20,7 +28,7 @@ func GetTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 			return
 		}
 
-		task, err := tm.GetTask(r.Context(), int32(id))
+		task, err := tm.GetTask(r.Context(), int32(id), userID)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get task: %v", err), http.StatusInternalServerError)
 			return

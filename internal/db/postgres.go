@@ -3,11 +3,16 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/HellUpa/taskmanager/internal/config"
 	"github.com/HellUpa/taskmanager/internal/models"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/google/uuid"
 )
 
 type PostgresDB struct {
@@ -31,115 +36,66 @@ func NewPostgresDB(log *slog.Logger, cfg config.DatabaseConfig) (*PostgresDB, er
 	}
 	log.Info("Connected to Database")
 
-	if _, err := db.Exec(
-		`CREATE TABLE IF NOT EXISTS tasks (
-		id SERIAL PRIMARY KEY,
-		title VARCHAR(255) NOT NULL,
-		description TEXT,
-		due_date TIMESTAMP,
-		completed BOOLEAN DEFAULT FALSE,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-		);`); err != nil {
-		return nil, fmt.Errorf("failed to prepare database: %w", err)
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create driver: %w", err)
 	}
-	log.Info("Database preparation completed")
+	m, err := migrate.NewWithDatabaseInstance("file://"+cfg.MigrationsPath, "postgres", driver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create migration instance: %w", err)
+	}
+	m.Up()
+	log.Info("Database migration completed")
 	return &PostgresDB{DB: db, log: log}, nil
 }
 
-// CreateTask creates a new task in the database.
-func (pdb *PostgresDB) CreateTask(ctx context.Context, task *models.Task) (int32, error) {
-	var id int32
-	err := pdb.DB.QueryRowContext(ctx,
-		"INSERT INTO tasks (title, description, due_date) VALUES ($1, $2, $3) RETURNING id",
-		task.Title, task.Description, task.DueDate).Scan(&id)
+// CreateUserTx creates a new user within a transaction.
+func (pdb *PostgresDB) CreateUserTx(ctx context.Context, tx *sql.Tx, user *models.User) error {
+	_, err := tx.ExecContext(ctx,
+		"INSERT INTO users (id, kratos_id) VALUES ($1, $2)",
+		user.ID, user.KratosID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create task: %w", err)
-	}
-	return id, nil
-}
-
-// GetTask retrieves a task by its ID.
-func (pdb *PostgresDB) GetTask(ctx context.Context, id int32) (*models.Task, error) {
-	task := &models.Task{}
-	err := pdb.DB.QueryRowContext(ctx,
-		"SELECT id, title, description, due_date, completed, created_at, updated_at FROM tasks WHERE id = $1", id).
-		Scan(&task.ID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil // Task not found
-		}
-		return nil, fmt.Errorf("failed to get task: %w", err)
-	}
-	return task, nil
-}
-
-// UpdateTask updates an existing task.
-func (pdb *PostgresDB) UpdateTask(ctx context.Context, task *models.Task) error {
-	result, err := pdb.DB.ExecContext(ctx,
-		"UPDATE tasks SET title = $1, description = $2, due_date = $3, completed = $4, updated_at = NOW() WHERE id = $5",
-		task.Title, task.Description, task.DueDate, task.Completed, task.ID)
-	if err != nil {
-		return fmt.Errorf("failed to update task: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
+		return fmt.Errorf("failed to create user: %w", err)
 	}
 	return nil
 }
 
-// DeleteTask deletes a task by its ID.
-func (pdb *PostgresDB) DeleteTask(ctx context.Context, id int32) error {
-	result, err := pdb.DB.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
+// GetUserByKratosIDTx retrieves a user by their Kratos ID within a transaction.
+func (pdb *PostgresDB) GetUserByKratosIDTx(ctx context.Context, tx *sql.Tx, kratosID string) (*models.User, error) {
+	user := &models.User{}
+	err := tx.QueryRowContext(ctx,
+		"SELECT id, kratos_id FROM users WHERE kratos_id = $1", kratosID).
+		Scan(&user.ID, &user.KratosID)
 	if err != nil {
-		return fmt.Errorf("failed to delete task: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // User not found
+		}
+		return nil, fmt.Errorf("failed to get user by Kratos ID: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-	return nil
+	return user, nil
 }
 
-// ListTasks retrieves all tasks.
-func (pdb *PostgresDB) ListTasks(ctx context.Context) ([]*models.Task, error) {
-	rows, err := pdb.DB.QueryContext(ctx, "SELECT id, title, description, due_date, completed, created_at, updated_at FROM tasks")
+// GetUserByIDTx retrieves a user by their ID within a transaction.
+func (pdb *PostgresDB) GetUserByIDTx(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*models.User, error) {
+	user := &models.User{}
+	err := tx.QueryRowContext(ctx,
+		"SELECT id, kratos_id FROM users WHERE id = $1", id).
+		Scan(&user.ID, &user.KratosID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list tasks: %w", err)
-	}
-	defer rows.Close()
-
-	var tasks []*models.Task
-	for rows.Next() {
-		task := &models.Task{}
-		if err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan task row: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // User not found
 		}
-		tasks = append(tasks, task)
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during rows iteration: %w", err)
-	}
-
-	return tasks, nil
+	return user, nil
 }
 
 // CreateTaskTx creates a new task within a transaction.
 func (pdb *PostgresDB) CreateTaskTx(ctx context.Context, tx *sql.Tx, task *models.Task) (int32, error) {
 	var id int32
 	err := tx.QueryRowContext(ctx,
-		"INSERT INTO tasks (title, description, due_date) VALUES ($1, $2, $3) RETURNING id",
-		task.Title, task.Description, task.DueDate).Scan(&id)
+		"INSERT INTO tasks (title, description, due_date, user_id) VALUES ($1, $2, $3, $4) RETURNING id",
+		task.Title, task.Description, task.DueDate, task.UserID).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create task: %w", err)
 	}
@@ -147,13 +103,13 @@ func (pdb *PostgresDB) CreateTaskTx(ctx context.Context, tx *sql.Tx, task *model
 }
 
 // GetTaskTx retrieves a task by its ID within a transaction.
-func (pdb *PostgresDB) GetTaskTx(ctx context.Context, tx *sql.Tx, id int32) (*models.Task, error) {
+func (pdb *PostgresDB) GetTaskTx(ctx context.Context, tx *sql.Tx, id int32, userID uuid.UUID) (*models.Task, error) {
 	task := &models.Task{}
 	err := tx.QueryRowContext(ctx,
-		"SELECT id, title, description, due_date, completed, created_at, updated_at FROM tasks WHERE id = $1", id).
-		Scan(&task.ID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt)
+		"SELECT id, user_id, title, description, due_date, completed, created_at, updated_at FROM tasks WHERE id = $1 AND user_id = $2", id, userID).
+		Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // Task not found
 		}
 		return nil, fmt.Errorf("failed to get task: %w", err)
@@ -161,14 +117,15 @@ func (pdb *PostgresDB) GetTaskTx(ctx context.Context, tx *sql.Tx, id int32) (*mo
 	return task, nil
 }
 
-// UpdateTaskTx updates an existing task within a transaction.
+// UpdateTaskTx updates an existing task within a transaction, and checks user ownership.
 func (pdb *PostgresDB) UpdateTaskTx(ctx context.Context, tx *sql.Tx, task *models.Task) error {
 	result, err := tx.ExecContext(ctx,
-		"UPDATE tasks SET title = $1, description = $2, due_date = $3, completed = $4, updated_at = NOW() WHERE id = $5",
-		task.Title, task.Description, task.DueDate, task.Completed, task.ID)
+		"UPDATE tasks SET title = $1, description = $2, due_date = $3, completed = $4, updated_at = NOW() WHERE id = $5 AND user_id = $6",
+		task.Title, task.Description, task.DueDate, task.Completed, task.ID, task.UserID)
 	if err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
@@ -177,15 +134,17 @@ func (pdb *PostgresDB) UpdateTaskTx(ctx context.Context, tx *sql.Tx, task *model
 	if rowsAffected == 0 {
 		return sql.ErrNoRows
 	}
+
 	return nil
 }
 
-// DeleteTaskTx deletes a task by its ID within a transaction.
-func (pdb *PostgresDB) DeleteTaskTx(ctx context.Context, tx *sql.Tx, id int32) error {
-	result, err := tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1", id)
+// DeleteTaskTx deletes a task by its ID within a transaction, and checks user ownership.
+func (pdb *PostgresDB) DeleteTaskTx(ctx context.Context, tx *sql.Tx, id int32, userID uuid.UUID) error {
+	result, err := tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
@@ -194,12 +153,13 @@ func (pdb *PostgresDB) DeleteTaskTx(ctx context.Context, tx *sql.Tx, id int32) e
 	if rowsAffected == 0 {
 		return sql.ErrNoRows
 	}
+
 	return nil
 }
 
-// ListTasksTx retrieves all tasks within a transaction.
-func (pdb *PostgresDB) ListTasksTx(ctx context.Context, tx *sql.Tx) ([]*models.Task, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id, title, description, due_date, completed, created_at, updated_at FROM tasks")
+// ListTasksTx retrieves all tasks for a specific user within a transaction.
+func (pdb *PostgresDB) ListTasksTx(ctx context.Context, tx *sql.Tx, userID uuid.UUID) ([]*models.Task, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT id, user_id, title, description, due_date, completed, created_at, updated_at FROM tasks WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
@@ -208,7 +168,7 @@ func (pdb *PostgresDB) ListTasksTx(ctx context.Context, tx *sql.Tx) ([]*models.T
 	var tasks []*models.Task
 	for rows.Next() {
 		task := &models.Task{}
-		if err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt); err != nil {
+		if err := rows.Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.DueDate, &task.Completed, &task.CreatedAt, &task.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan task row: %w", err)
 		}
 		tasks = append(tasks, task)
