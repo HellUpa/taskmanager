@@ -33,8 +33,19 @@ func CreateTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 		}
 
 		task.ID = id
+		task.UserID = userID
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(task)
 	}
 }
+
+// *** Leave this function for later ***
+// func hasScope(scopes []string, requiredScope string) bool {
+// 	for _, scope := range scopes {
+// 		if scope == requiredScope {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }

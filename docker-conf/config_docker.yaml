@@ -13,7 +13,7 @@ http_server:
 health_check:
   port: :8000
 telemetry:
-  port: :9090
+  port: :9000
 auth:
   kratos_ip: kratos
   hydra_ip: hydra
