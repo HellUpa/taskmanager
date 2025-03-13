@@ -14,3 +14,8 @@ health_check:
   port: :8000
 telemetry:
   port: :9090
+auth:
+  kratos_ip: kratos
+  hydra_ip: hydra
+  ui_ip: 127.0.0.1
+  scopes: "openid,offline,tasks:read,tasks:create,tasks:update,tasks:delete"

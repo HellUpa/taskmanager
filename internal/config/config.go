@@ -14,6 +14,7 @@ type Config struct {
 	HTTPServer  HTTPConfig        `yaml:"http_server"`
 	HealthCheck HealthCheckConfig `yaml:"health_check"`
 	Telemetry   TelemetryConfig   `yaml:"telemetry"`
+	Auth        AuthConfig        `yaml:"auth"`
 }
 type DatabaseConfig struct {
 	DBHost         string `yaml:"host"`
@@ -36,6 +37,13 @@ type HealthCheckConfig struct {
 
 type TelemetryConfig struct {
 	Port string `yaml:"port"`
+}
+
+type AuthConfig struct {
+	KratosIP string `yaml:"kratos_ip"`
+	HydraIP  string `yaml:"hydra_ip"`
+	UI_IP    string `yaml:"ui_ip"`
+	Scopes   string `yaml:"scopes"`
 }
 
 func MustLoad() *Config {

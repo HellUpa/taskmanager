@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,11 +14,13 @@ import (
 	"github.com/HellUpa/taskmanager/internal/config"
 	"github.com/HellUpa/taskmanager/internal/db"
 	"github.com/HellUpa/taskmanager/internal/http-server/handlers"
+	middlewares "github.com/HellUpa/taskmanager/internal/http-server/middleware"
 	"github.com/HellUpa/taskmanager/internal/logger"
 	logu "github.com/HellUpa/taskmanager/internal/logger/logger-utils"
 	"github.com/HellUpa/taskmanager/internal/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	kratos "github.com/ory/kratos-client-go"
 
 	_ "github.com/lib/pq"
 )
@@ -61,10 +64,19 @@ func main() {
 	// Create the TaskManager service.
 	taskManagerService := app.NewTaskManagerService(log, postgresDB)
 
+	// Kratos Client Configuration
+	kratosConfig := kratos.NewConfiguration()
+	kratosConfig.Servers = kratos.ServerConfigurations{
+		{
+			URL: fmt.Sprintf("http://%v:4433", cfg.Auth.KratosIP),
+		},
+	}
+	kratosClient := kratos.NewAPIClient(kratosConfig)
+
 	// Create a new Chi router.
 	r := chi.NewRouter()
 
-	// Middleware.
+	// Chi router configuration.
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(logger.NewMiddlewareLogger(log))
@@ -72,12 +84,20 @@ func main() {
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(telemetry.HTTPRequestMetrics(requestCount, requestLatency))
 
+	// Auth middleware.
+
 	// Routes.
-	r.Get("/tasks", handlers.ListTasksHandler(taskManagerService))
-	r.Post("/tasks", handlers.CreateTaskHandler(taskManagerService))
-	r.Get("/tasks/{id}", handlers.GetTaskHandler(taskManagerService))
-	r.Put("/tasks/{id}", handlers.UpdateTaskHandler(taskManagerService))
-	r.Delete("/tasks/{id}", handlers.DeleteTaskHandler(taskManagerService))
+	r.Post("/webhooks/kratos", handlers.KratosRegistrationWebhookHandler(taskManagerService))
+
+	// Routes that require authentication.
+	r.Group(func(r chi.Router) {
+		r.Use(middlewares.AuthMiddleware(kratosClient, taskManagerService, cfg.Auth.UI_IP))
+		r.Get("/tasks", handlers.ListTasksHandler(taskManagerService))
+		r.Post("/tasks", handlers.CreateTaskHandler(taskManagerService))
+		r.Get("/tasks/{id}", handlers.GetTaskHandler(taskManagerService))
+		r.Put("/tasks/{id}", handlers.UpdateTaskHandler(taskManagerService))
+		r.Delete("/tasks/{id}", handlers.DeleteTaskHandler(taskManagerService))
+	})
 
 	// Health check and metrics endpoints.
 	h := chi.NewRouter()

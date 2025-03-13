@@ -15,13 +15,13 @@ import (
 
 type TaskManagerService struct {
 	db  *db.PostgresDB
-	log *slog.Logger
+	Log *slog.Logger
 }
 
 func NewTaskManagerService(log *slog.Logger, db *db.PostgresDB) *TaskManagerService {
 	return &TaskManagerService{
 		db:  db,
-		log: log,
+		Log: log,
 	}
 }
 
@@ -37,7 +37,7 @@ func (s *TaskManagerService) CreateTask(ctx context.Context, task *models.Task, 
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -63,7 +63,7 @@ func (s *TaskManagerService) GetTask(ctx context.Context, id int32, userID uuid.
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -89,7 +89,7 @@ func (s *TaskManagerService) UpdateTask(ctx context.Context, task *models.Task) 
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -117,7 +117,7 @@ func (s *TaskManagerService) DeleteTask(ctx context.Context, id int32, userID uu
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -144,7 +144,7 @@ func (s *TaskManagerService) ListTasks(ctx context.Context, userID uuid.UUID) ([
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -171,7 +171,7 @@ func (s *TaskManagerService) CreateUser(ctx context.Context, user *models.User) 
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -197,7 +197,7 @@ func (s *TaskManagerService) GetUserByKratosID(ctx context.Context, kratosID str
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()
@@ -223,7 +223,7 @@ func (s *TaskManagerService) GetUserByID(ctx context.Context, id uuid.UUID) (*mo
 	defer func() {
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error("Rollback failed", logu.Err(rollbackErr))
+				s.Log.Error("Rollback failed", logu.Err(rollbackErr))
 			}
 		}
 	}()

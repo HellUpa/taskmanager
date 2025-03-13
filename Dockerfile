@@ -1,5 +1,5 @@
 # Базовый образ для сборки (содержит Go).
-FROM golang:1.23.6 AS builder
+FROM golang:1.24.0 AS builder
 
 # Устанавливаем рабочую директорию внутри контейнера.
 WORKDIR /app

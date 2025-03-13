@@ -6,15 +6,15 @@ import (
 	"net/http"
 
 	"github.com/HellUpa/taskmanager/internal/app"
+	middlewares "github.com/HellUpa/taskmanager/internal/http-server/middleware"
 	"github.com/HellUpa/taskmanager/internal/models"
-	"github.com/HellUpa/taskmanager/internal/telemetry"
 	"github.com/google/uuid"
 )
 
 // createTaskHandler handles POST requests to create a new task.
 func CreateTaskHandler(tm *app.TaskManagerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := r.Context().Value(telemetry.UserIDKey).(uuid.UUID) // Get user ID from context
+		userID, ok := r.Context().Value(middlewares.UserIDKey).(uuid.UUID) // Get user ID from context
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
