@@ -1,0 +1,23 @@
+apiVersion: v2
+name: taskmanager  # The name of the chart
+description: A Helm chart for the Task Manager application
+version: 0.1.0  # Chart version (SemVer)
+appVersion: "0.1.0"  # Application version (your app's version)
+type: application
+keywords:
+  - taskmanager
+  - go
+  - rest
+  - postgresql
+  - kratos
+home: https://github.com/HellUpa/taskmanager
+sources:
+  - https://github.com/HellUpa/taskmanager.git
+maintainers:
+  - name: Bogdanov Kirill
+dependencies:
+  - name: postgresql
+    version: 16.5.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+    alias: db

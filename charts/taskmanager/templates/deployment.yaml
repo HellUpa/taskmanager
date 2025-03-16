@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "taskmanager.fullname" . }}
+    labels:
+        {{- include "taskmanager.labels" . | nindent 8 }}
+spec:
+    replicas: {{ .Values.replicaCount }}  # Use the replicaCount value
+    selector:
+        matchLabels:
+            {{- include "taskmanager.selectorLabels" . | nindent 12 }}
+    template:
+        metadata:
+            labels:
+                {{- include "taskmanager.selectorLabels" . | nindent 16 }}
+        spec:
+            initContainers:
+                - name: wait-for-postgres
+                  image: busybox:1.36
+                  command:
+                    - sh
+                    - -c
+                    - |
+                        until nc -z -v -w30 {{ .Values.config.db.host }} {{ .Values.config.db.port }}; do
+                          echo "Waiting for PostgreSQL to become available..."
+                          sleep 2
+                        done
+                        echo "PostgreSQL is ready!"
+            containers:
+                - name: taskmanager-server
+                  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"  # Use image values
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  ports:
+                    - containerPort: {{ .Values.config.http_server.port }}
+                      name: http
+                  volumeMounts:
+                    - name: config-volume
+                      mountPath: /etc/taskmanager
+                  livenessProbe:
+                    httpGet:
+                        path: /health
+                        port: {{ .Values.config.health_check.port }}
+                    initialDelaySeconds: 3
+                    periodSeconds: 3
+                  readinessProbe:
+                    httpGet:
+                        path: /health
+                        port: {{ .Values.config.health_check.port }}
+                    initialDelaySeconds: 3
+                    periodSeconds: 3
+                  resources:
+                    {{- toYaml .Values.resources | nindent 20 }}
+            volumes:
+                - name: config-volume
+                  configMap:
+                    name: {{ include "taskmanager.fullname" . }}-config

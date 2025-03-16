@@ -110,7 +110,7 @@ func main() {
 
 	// Start the server in a goroutine.
 	server := &http.Server{
-		Addr:         cfg.HTTPServer.Port,
+		Addr:         fmt.Sprintf(":%v", cfg.HTTPServer.Port),
 		Handler:      r,
 		ReadTimeout:  cfg.HTTPServer.Timeout,
 		WriteTimeout: cfg.HTTPServer.Timeout,
@@ -126,7 +126,7 @@ func main() {
 
 	// Start Healthcheck server
 	healthcheck := &http.Server{
-		Addr:    cfg.HealthCheck.Port,
+		Addr:    fmt.Sprintf(":%v", cfg.HealthCheck.Port),
 		Handler: h,
 	}
 	go func() {
@@ -139,7 +139,7 @@ func main() {
 
 	// Start Metrics server
 	metrics := &http.Server{
-		Addr:    cfg.Telemetry.Port,
+		Addr:    fmt.Sprintf(":%v", cfg.Telemetry.Port),
 		Handler: m,
 	}
 	go func() {

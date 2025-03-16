@@ -1,0 +1,68 @@
+# Default values for taskmanager.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: taskmanager-server
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 8080
+  nodePort: 30001 
+
+config:
+  env: local
+  db: 
+    host: taskmanager-db
+    port: 5432
+    user: postgres
+    password: postgres
+    name: taskmanager
+  http_server:  
+    port: 8080
+    timeout: 10s
+    idle_timeout: 120s
+  health_check:
+    port: 8000
+  telemetry:
+    port: 9090
+  auth:
+    kratos_ip: kratos
+    ui_ip: 127.0.0.1
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    enablePostgresUser: true #For default postgres user
+    postgresPassword: postgres  
+    username: custom_name  #For custom users
+    password: postgres
+    database: taskmanager
+  
+  # metrics:
+  #   enabled: true
+
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+  
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 500Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+    enabled: false

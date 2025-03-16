@@ -41,9 +41,7 @@ type TelemetryConfig struct {
 
 type AuthConfig struct {
 	KratosIP string `yaml:"kratos_ip"`
-	HydraIP  string `yaml:"hydra_ip"`
 	UI_IP    string `yaml:"ui_ip"`
-	Scopes   string `yaml:"scopes"`
 }
 
 func MustLoad() *Config {
