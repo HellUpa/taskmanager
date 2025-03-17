@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "kratos.fullname" . }}
+    labels:
+        {{- include "kratos.labels" . | nindent 8 }}
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+        {{- include "kratos.selectorLabels" . | nindent 8 }}
+    template:
+        metadata:
+        labels:
+            {{- include "kratos.selectorLabels" . | nindent 12 }}
+        spec:
+        containers:
+            - name: kratos
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              ports:
+                - containerPort: {{ .Values.service.publicPort }}
+                  name: public
+                - containerPort: {{ .Values.service.adminPort }}
+                  name: admin
+            readinessProbe:
+                {{- toYaml .Values.readinessProbe | nindent 20 }}
+            livenessProbe:
+                {{- toYaml .Values.livenessProbe | nindent 20 }}
+            volumeMounts:
+                - name: kratos-config
+                  mountPath: /etc/kratos
+            env:
+                - name: DSN
+                  value: {{ .Values.config | get "dsn" }}
+                {{- range $key, $value := .Values.config }}
+                {{- if ne $key "dsn" }}
+                - name: {{ $key | upper | replace "." "_" }}  # Convert to uppercase and replace dots
+                  value: {{ $value | quote }}
+                {{- end }}
+                {{- end }}
+            {{- with .Values.resources }}
+            resources:
+                {{- toYaml . | nindent 20 }}
+            {{- end }}
+        volumes:
+            - name: kratos-config
+            configMap:
+                name: {{ include "kratos.fullname" . }}-config

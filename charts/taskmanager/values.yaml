@@ -34,25 +34,23 @@ config:
     kratos_ip: kratos
     ui_ip: 127.0.0.1
 
-# PostgreSQL configuration
-postgresql:
-  enabled: true
-  auth:
-    enablePostgresUser: true #For default postgres user
-    postgresPassword: postgres  
-    username: custom_name  #For custom users
-    password: postgres
-    database: taskmanager
+global:
+  # PostgreSQL configuration
+  postgresql:
+    enabled: true
+    auth:
+      enablePostgresUser: true #For default postgres user
+      postgresPassword: postgres
+      database: taskmanager
   
-  # metrics:
-  #   enabled: true
+    # metrics:
+    #   enabled: true
 
-  primary:
-    persistence:
-      enabled: true
-      size: 1Gi
-  
-
+    primary:
+      persistence:
+        enabled: true
+        size: 1Gi
+      
 ingress:
   enabled: false
 

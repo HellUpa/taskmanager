@@ -7,13 +7,13 @@ db:
   name: taskmanager
   migrations_path: /etc/taskmanager/migrations
 http_server:  
-  port: :8080 
+  port: 8080 
   timeout: 10s
   idle_timeout: 120s
 health_check:
-  port: :8000
+  port: 8000
 telemetry:
-  port: :9090
+  port: 9090
 auth:
   kratos_ip: kratos
   ui_ip: 127.0.0.1
