@@ -28,8 +28,11 @@ import (
 func main() {
 	// Configure the application.
 	cfg := config.MustLoad()
+
 	// Setup the logger.
 	log := logger.SetupLogger(cfg.Env)
+	log.Debug("Logger setup complete")
+	log.Debug("Previously configuration loaded", slog.Any("config", cfg))
 
 	// Create a new meter provider.
 	meterProvider, err := telemetry.NewPrometheusMeterProvider("taskmanager-server", "v0.1.0")
@@ -42,8 +45,10 @@ func main() {
 		if err := meterProvider.Shutdown(ctx); err != nil {
 			log.Error("Error shutting down meter provider", logu.Err(err))
 		}
+		log.Debug("Meter provider shutdown complete")
 	}()
 
+	// Create metrics.
 	meter := meterProvider.Meter("taskmanager-server")
 	requestCount, err := telemetry.CreateCounter(meter, "requests_total", "Total number of requests")
 	if err != nil {
@@ -53,6 +58,7 @@ func main() {
 	if err != nil {
 		log.Error("Failed to create request latency histogram", logu.Err(err))
 	}
+	log.Debug("Metrics initialization complete")
 
 	// Connect to PostgreSQL.
 	postgresDB, err := db.NewPostgresDB(log, cfg.Database)
@@ -60,9 +66,11 @@ func main() {
 		log.Error("Failed to connect to database", logu.Err(err))
 	}
 	defer postgresDB.Close()
+	log.Debug("Connected to PostgreSQL database")
 
 	// Create the TaskManager service.
 	taskManagerService := app.NewTaskManagerService(log, postgresDB)
+	log.Debug("TaskManager service created")
 
 	// Kratos Client Configuration
 	kratosConfig := kratos.NewConfiguration()
@@ -72,6 +80,7 @@ func main() {
 		},
 	}
 	kratosClient := kratos.NewAPIClient(kratosConfig)
+	log.Debug("Kratos client configured", slog.String("kratos_ip", cfg.Auth.KratosIP))
 
 	// Create a new Chi router.
 	r := chi.NewRouter()
@@ -83,8 +92,6 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(telemetry.HTTPRequestMetrics(requestCount, requestLatency))
-
-	// Auth middleware.
 
 	// Routes.
 	r.Post("/webhooks/kratos", handlers.KratosRegistrationWebhookHandler(taskManagerService))
@@ -98,12 +105,14 @@ func main() {
 		r.Put("/tasks/{id}", handlers.UpdateTaskHandler(taskManagerService))
 		r.Delete("/tasks/{id}", handlers.DeleteTaskHandler(taskManagerService))
 	})
+	log.Debug("Routes for base port configured")
 
 	// Health check and metrics endpoints.
 	h := chi.NewRouter()
 	h.Get("/health", telemetry.HealthCheckHandler)
 	m := chi.NewRouter()
 	m.Handle("/metrics", telemetry.ExposeMetricsHandler())
+	log.Debug("Health check and metrics endpoints configured")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
